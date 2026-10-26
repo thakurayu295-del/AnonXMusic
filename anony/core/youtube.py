@@ -2,7 +2,6 @@
 # Licensed under the MIT License.
 # This file is part of AnonXMusic
 
-
 import os
 import re
 import yt_dlp
@@ -27,6 +26,7 @@ class DummyLogger:
     def error(self, msg):
         pass
 
+
 class YouTube:
     def __init__(self):
         self.base = "https://www.youtube.com/watch?v="
@@ -45,45 +45,53 @@ class YouTube:
             r"(?!/(watch\?v=[A-Za-z0-9_-]{11}|shorts/[A-Za-z0-9_-]{11}"
             r"|playlist\?list=PL[A-Za-z0-9_-]+|[A-Za-z0-9_-]{11}))\S*"
         )
+
     def get_cookies(self):
-    cookie_content = os.getenv("YOUTUBE_COOKIES")
+        cookie_content = os.getenv("YOUTUBE_COOKIES")
 
-    if cookie_content:
-        cookie_path = "/tmp/youtube_cookies.txt"
-        with open(cookie_path, "w", encoding="utf-8") as f:
-            f.write(cookie_content)
-        return cookie_path
+        if cookie_content:
+            cookie_path = "/tmp/youtube_cookies.txt"
+            with open(cookie_path, "w", encoding="utf-8") as f:
+                f.write(cookie_content)
+            return cookie_path
 
-    if not self.checked:
-        os.makedirs(self.cookie_dir, exist_ok=True)
+        if not self.checked:
+            os.makedirs(self.cookie_dir, exist_ok=True)
 
-        for file in os.listdir(self.cookie_dir):
-            if file.endswith(".txt"):
-                self.cookies.append(
-                    os.path.join(self.cookie_dir, file)
+            for file in os.listdir(self.cookie_dir):
+                if file.endswith(".txt"):
+                    self.cookies.append(
+                        os.path.join(self.cookie_dir, file)
+                    )
+
+            self.checked = True
+
+        if not self.cookies:
+            if not self.warned:
+                self.warned = True
+                logger.warning(
+                    "Cookies are missing; downloads might fail."
                 )
+            return None
 
-        self.checked = True
-
-    if not self.cookies:
-        if not self.warned:
-            self.warned = True
-            logger.warning("Cookies are missing; downloads might fail.")
-        return None
-
-    return random.choice(self.cookies)
-   
+        return random.choice(self.cookies)
 
     async def save_cookies(self, urls: list[str]) -> None:
         logger.info("Saving cookies from urls...")
+
         async with aiohttp.ClientSession() as session:
             for url in urls:
                 name = url.split("/")[-1]
                 link = "https://batbin.me/raw/" + name
+
                 async with session.get(link) as resp:
                     resp.raise_for_status()
-                    with open(f"{self.cookie_dir}/{name}.txt", "wb") as fw:
+
+                    with open(
+                        f"{self.cookie_dir}/{name}.txt", "wb"
+                    ) as fw:
                         fw.write(await resp.read())
+
         logger.info(f"Cookies saved in {self.cookie_dir}.")
 
     def valid(self, url: str) -> bool:
@@ -92,14 +100,20 @@ class YouTube:
     def invalid(self, url: str) -> bool:
         return bool(re.match(self.iregex, url))
 
-    async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:
+    async def search(
+        self, query: str, m_id: int, video: bool = False
+    ) -> Track | None:
         try:
-            _search = VideosSearch(query, limit=1, with_live=False)
+            _search = VideosSearch(
+                query, limit=1, with_live=False
+            )
             results = await _search.next()
         except Exception:
             return None
+
         if results and results["result"]:
             data = results["result"][0]
+
             return Track(
                 id=data.get("id"),
                 channel_name=data.get("channel", {}).get("name"),
@@ -107,17 +121,23 @@ class YouTube:
                 duration_sec=utils.to_seconds(data.get("duration")),
                 message_id=m_id,
                 title=data.get("title")[:25],
-                thumbnail=data.get("thumbnails", [{}])[-1].get("url").split("?")[0],
+                thumbnail=data.get("thumbnails", [{}])[-1]
+                .get("url").split("?")[0],
                 url=data.get("link"),
                 view_count=data.get("viewCount", {}).get("short"),
                 video=video,
             )
+
         return None
 
-    async def playlist(self, limit: int, user: str, url: str, video: bool) -> list[Track | None]:
+    async def playlist(
+        self, limit: int, user: str, url: str, video: bool
+    ) -> list[Track | None]:
         tracks = []
+
         try:
             plist = await Playlist.get(url)
+
             for data in plist["videos"][:limit]:
                 track = Track(
                     id=data.get("id"),
@@ -125,18 +145,24 @@ class YouTube:
                     duration=data.get("duration"),
                     duration_sec=utils.to_seconds(data.get("duration")),
                     title=data.get("title")[:25],
-                    thumbnail=data.get("thumbnails")[-1].get("url").split("?")[0],
+                    thumbnail=data.get("thumbnails")[-1]
+                    .get("url").split("?")[0],
                     url=data.get("link").split("&list=")[0],
                     user=user,
                     view_count="",
                     video=video,
                 )
+
                 tracks.append(track)
+
         except Exception:
             pass
+
         return tracks
 
-    async def download(self, video_id: str, video: bool = False) -> str | None:
+    async def download(
+        self, video_id: str, video: bool = False
+    ) -> str | None:
         url = self.base + video_id
         ext = "mp4" if video else "webm"
         filename = f"downloads/{video_id}.{ext}"
@@ -145,6 +171,7 @@ class YouTube:
             return filename
 
         cookie = self.get_cookies()
+
         base_opts = {
             "outtmpl": "downloads/%(id)s.%(ext)s",
             "quiet": True,
@@ -154,14 +181,19 @@ class YouTube:
             "overwrites": False,
             "logger": DummyLogger(),
             "nocheckcertificate": True,
-            "cookiefile": cookie,
             "remote_components": ["ejs:github"],
         }
+
+        if cookie:
+            base_opts["cookiefile"] = cookie
 
         if video:
             ydl_opts = {
                 **base_opts,
-                "format": "(bestvideo[height<=?720][width<=?1280][ext=mp4])+(bestaudio)",
+                "format": (
+                    "(bestvideo[height<=?720][width<=?1280][ext=mp4])"
+                    "+(bestaudio)"
+                ),
                 "merge_output_format": "mp4",
             }
         else:
@@ -174,11 +206,17 @@ class YouTube:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 try:
                     ydl.download([url])
-                except (yt_dlp.utils.DownloadError, yt_dlp.utils.ExtractorError):
+
+                except (
+                    yt_dlp.utils.DownloadError,
+                    yt_dlp.utils.ExtractorError,
+                ):
                     return None
+
                 except Exception as ex:
                     logger.warning("Download failed: %s", ex)
                     return None
+
             return filename
 
         return await asyncio.to_thread(_download)
