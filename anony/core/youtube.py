@@ -32,7 +32,7 @@ class YouTube:
         self.base = "https://www.youtube.com/watch?v="
         self.cookies = []
         self.checked = False
-     self.cookie_dir = os.getenv("COOKIE_DIR", "anony/cookies")
+        self.cookie_dir = os.getenv("COOKIE_DIR", "anony/cookies")
 
         self.warned = False
         self.regex = re.compile(
