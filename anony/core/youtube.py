@@ -45,19 +45,34 @@ class YouTube:
             r"(?!/(watch\?v=[A-Za-z0-9_-]{11}|shorts/[A-Za-z0-9_-]{11}"
             r"|playlist\?list=PL[A-Za-z0-9_-]+|[A-Za-z0-9_-]{11}))\S*"
         )
+def get_cookies(self):
+    cookie_content = os.getenv("YOUTUBE_COOKIES")
 
-    def get_cookies(self):
-        if not self.checked:
-            for file in os.listdir(self.cookie_dir):
-                if file.endswith(".txt"):
-                    self.cookies.append(f"{self.cookie_dir}/{file}")
-            self.checked = True
-        if not self.cookies:
-            if not self.warned:
-                self.warned = True
-                logger.warning("Cookies are missing; downloads might fail.")
-            return None
-        return random.choice(self.cookies)
+    if cookie_content:
+        cookie_path = "/tmp/youtube_cookies.txt"
+        with open(cookie_path, "w", encoding="utf-8") as f:
+            f.write(cookie_content)
+        return cookie_path
+
+    if not self.checked:
+        os.makedirs(self.cookie_dir, exist_ok=True)
+
+        for file in os.listdir(self.cookie_dir):
+            if file.endswith(".txt"):
+                self.cookies.append(
+                    os.path.join(self.cookie_dir, file)
+                )
+
+        self.checked = True
+
+    if not self.cookies:
+        if not self.warned:
+            self.warned = True
+            logger.warning("Cookies are missing; downloads might fail.")
+        return None
+
+    return random.choice(self.cookies)
+   
 
     async def save_cookies(self, urls: list[str]) -> None:
         logger.info("Saving cookies from urls...")
