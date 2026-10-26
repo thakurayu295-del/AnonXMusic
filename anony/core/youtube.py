@@ -45,7 +45,7 @@ class YouTube:
             r"(?!/(watch\?v=[A-Za-z0-9_-]{11}|shorts/[A-Za-z0-9_-]{11}"
             r"|playlist\?list=PL[A-Za-z0-9_-]+|[A-Za-z0-9_-]{11}))\S*"
         )
-def get_cookies(self):
+    def get_cookies(self):
     cookie_content = os.getenv("YOUTUBE_COOKIES")
 
     if cookie_content:
